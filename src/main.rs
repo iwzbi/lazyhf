@@ -14,6 +14,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use keys::KeyConfig;
 fn main() -> Result<()> {
     let app_start = Instant::now();
 
