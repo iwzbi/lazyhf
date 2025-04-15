@@ -44,7 +44,7 @@ pub fn process_cmdline() -> Result<CliArgs> {
 fn app() -> ClapApp {
     ClapApp::new(crate_name!())
 		.author(crate_authors!())
-		.version(env!("GITUI_BUILD_NAME"))
+		// .version(env!("GITUI_BUILD_NAME"))
 		.about(crate_description!())
 		.help_template(
 			"\
@@ -109,14 +109,13 @@ fn app() -> ClapApp {
 }
 
 pub fn get_app_config_path() -> Result<PathBuf> {
-	let mut path = if cfg!(target_os = "macos") {
-		dirs::home_dir().map(|h| h.join(".config"))
-	} else {
-		dirs::config_dir()
-	}
-	.ok_or_else(|| anyhow!("failed to find os config dir."))?;
+    let mut path = if cfg!(target_os = "macos") {
+        dirs::home_dir().map(|h| h.join(".config"))
+    } else {
+        dirs::config_dir()
+    }
+    .ok_or_else(|| anyhow!("failed to find os config dir."))?;
 
-	path.push("gitui");
-	Ok(path)
+    path.push("gitui");
+    Ok(path)
 }
-
