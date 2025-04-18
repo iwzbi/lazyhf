@@ -7,7 +7,7 @@ use super::{
     symbols::KeySymbols,
 };
 // use crate::{args::get_app_config_path, strings::symbol};
-use crate::{args::get_app_config_path};
+use crate::args::get_app_config_path;
 
 pub type SharedKeyConfig = Rc<KeyConfig>;
 const KEY_LIST_FILENAME: &str = "key_bindings.ron";
