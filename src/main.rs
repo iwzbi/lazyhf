@@ -1,10 +1,14 @@
 mod app;
 mod args;
-mod input;
+// mod input;
+mod components;
 mod keys;
 mod tabs;
 mod ui;
+mod string_utils;
+mod strings;
 
+mod cmdbar;
 use crate::{app::App, args::process_cmdline};
 use anyhow::{anyhow, bail, Result};
 use std::{
@@ -20,7 +24,8 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-use input::{Input, InputEvent, InputState};
+// use input::{Input, InputEvent, InputState};
+use app::QuitState;
 use keys::KeyConfig;
 use ratatui::backend::CrosstermBackend;
 use scopeguard::defer;
@@ -33,8 +38,8 @@ pub enum QueueEvent {
     Tick,
     Notify,
     SpinnerUpdate,
-    AsyncEvent(AsyncNotification),
-    InputEvent(InputEvent),
+    // AsyncEvent(AsyncNotification),
+    // InputEvent(InputEvent),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,19 +54,19 @@ pub enum AsyncAppNotification {
     SyntaxHighlighting(SyntaxHighlightProgress),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AsyncNotification {
-    ///
-    App(AsyncAppNotification),
-    ///
-    Git(AsyncGitNotification),
-}
+// #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// pub enum AsyncNotification {
+//     ///
+//     App(AsyncAppNotification),
+//     ///
+//     Git(AsyncGitNotification),
+// }
 
-#[derive(Clone, Copy, PartialEq)]
-enum Updater {
-    Ticker,
-    NotifyWatcher,
-}
+// #[derive(Clone, Copy, PartialEq)]
+// enum Updater {
+//     Ticker,
+//     NotifyWatcher,
+// }
 
 fn main() -> Result<()> {
     let app_start = Instant::now();
@@ -79,22 +84,22 @@ fn main() -> Result<()> {
     }
 
     let mut terminal = start_terminal(io::stdout())?;
-    let input = Input::new();
+    // let input = Input::new();
 
-    let updater = if cliargs.notify_watcher {
-        Updater::NotifyWatcher
-    } else {
-        Updater::Ticker
-    };
+    // let updater = if cliargs.notify_watcher {
+    //     Updater::NotifyWatcher
+    // } else {
+    //     Updater::Ticker
+    // };
 
     loop {
         let quit_state = run_app(
             app_start,
-            repo_path.clone(),
+            // repo_path.clone(),
             theme.clone(),
             key_config.clone(),
-            &input,
-            updater,
+            // &input,
+            // updater,
             &mut terminal,
         )?;
 
@@ -137,8 +142,8 @@ fn run_app(
     app_start: Instant,
     theme: Theme,
     key_config: KeyConfig,
-    input: &Input,
-    updater: Updater,
+    // input: &Input,
+    // updater: Updater,
     terminal: &mut Terminal,
 ) -> Result<QuitState, anyhow::Error> {
     // let (tx_git, rx_git) = unbounded();
@@ -158,10 +163,10 @@ fn run_app(
     // let spinner_ticker = tick(SPINNER_INTERVAL);
 
     let mut app = App::new(
-        RefCell::new(repo),
-        tx_git,
-        tx_app,
-        input.clone(),
+        // RefCell::new(repo),
+        // tx_git,
+        // tx_app,
+        // input.clone(),
         theme,
         key_config,
     )?;
@@ -222,55 +227,55 @@ fn run_app(
             // spinner.set_state(app.any_work_pending());
             // spinner.draw(terminal)?;
 
-            if app.is_quit() {
-                break;
-            }
+            // if app.is_quit() {
+            //     break;
+            // }
         }
     }
 
-    Ok(app.quit_state())
+    // Ok(app.quit_state())
 }
-fn select_event(
-    rx_input: &Receiver<InputEvent>,
-    rx_git: &Receiver<AsyncGitNotification>,
-    rx_app: &Receiver<AsyncAppNotification>,
-    rx_ticker: &Receiver<Instant>,
-    rx_notify: &Receiver<()>,
-    rx_spinner: &Receiver<Instant>,
-) -> Result<QueueEvent> {
-    let mut sel = Select::new();
+// fn select_event(
+//     rx_input: &Receiver<InputEvent>,
+//     rx_git: &Receiver<AsyncGitNotification>,
+//     rx_app: &Receiver<AsyncAppNotification>,
+//     rx_ticker: &Receiver<Instant>,
+//     rx_notify: &Receiver<()>,
+//     rx_spinner: &Receiver<Instant>,
+// ) -> Result<QueueEvent> {
+//     let mut sel = Select::new();
 
-    sel.recv(rx_input);
-    sel.recv(rx_git);
-    sel.recv(rx_app);
-    sel.recv(rx_ticker);
-    sel.recv(rx_notify);
-    sel.recv(rx_spinner);
+//     sel.recv(rx_input);
+//     sel.recv(rx_git);
+//     sel.recv(rx_app);
+//     sel.recv(rx_ticker);
+//     sel.recv(rx_notify);
+//     sel.recv(rx_spinner);
 
-    let oper = sel.select();
-    let index = oper.index();
+//     let oper = sel.select();
+//     let index = oper.index();
 
-    let ev = match index {
-        0 => oper.recv(rx_input).map(QueueEvent::InputEvent),
-        1 => oper
-            .recv(rx_git)
-            .map(|e| QueueEvent::AsyncEvent(AsyncNotification::Git(e))),
-        2 => oper
-            .recv(rx_app)
-            .map(|e| QueueEvent::AsyncEvent(AsyncNotification::App(e))),
-        3 => oper.recv(rx_ticker).map(|_| QueueEvent::Notify),
-        4 => oper.recv(rx_notify).map(|()| QueueEvent::Notify),
-        5 => oper.recv(rx_spinner).map(|_| QueueEvent::SpinnerUpdate),
-        _ => bail!("unknown select source"),
-    }?;
+//     let ev = match index {
+//         0 => oper.recv(rx_input).map(QueueEvent::InputEvent),
+//         1 => oper
+//             .recv(rx_git)
+//             .map(|e| QueueEvent::AsyncEvent(AsyncNotification::Git(e))),
+//         2 => oper
+//             .recv(rx_app)
+//             .map(|e| QueueEvent::AsyncEvent(AsyncNotification::App(e))),
+//         3 => oper.recv(rx_ticker).map(|_| QueueEvent::Notify),
+//         4 => oper.recv(rx_notify).map(|()| QueueEvent::Notify),
+//         5 => oper.recv(rx_spinner).map(|_| QueueEvent::SpinnerUpdate),
+//         _ => bail!("unknown select source"),
+//     }?;
 
-    Ok(ev)
-}
+//     Ok(ev)
+// }
 
 fn draw(terminal: &mut Terminal, app: &App) -> io::Result<()> {
-    if app.requires_redraw() {
-        terminal.clear()?;
-    }
+    // if app.requires_redraw() {
+    //     terminal.clear()?;
+    // }
 
     terminal.draw(|f| {
         if let Err(e) = app.draw(f) {
