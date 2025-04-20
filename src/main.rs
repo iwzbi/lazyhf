@@ -138,6 +138,12 @@ fn start_terminal(buf: Stdout) -> Result<Terminal> {
 
     Ok(terminal)
 }
+
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+};
+
 fn run_app(
     app_start: Instant,
     theme: Theme,
@@ -198,6 +204,13 @@ fn run_app(
             //     continue;
             // }
 
+            if event::poll(std::time::Duration::from_millis(100))? {
+                if let Event::Key(key) = event::read()? {
+                    if key.code == KeyCode::Char('q') {
+                        break Ok(QuitState::None);
+                    }
+                }
+            }
             // scope_time!("loop");
 
             // match event {

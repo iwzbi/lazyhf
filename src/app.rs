@@ -235,18 +235,18 @@ impl App {
         //     || self.blame_file_popup.is_visible()
         //     || self.file_revlog_popup.is_visible();
         let fullscreen_popup_open = false;
-
-        if !fullscreen_popup_open {
-            //TODO: macro because of generic draw call
-            match self.tab {
-                // 0 => self.status_tab.draw(f, chunks_main[1])?,
-                // 1 => self.revlog.draw(f, chunks_main[1])?,
-                2 => self.files_tab.draw(f, chunks_main[1])?,
-                // 3 => self.stashing_tab.draw(f, chunks_main[1])?,
-                // 4 => self.stashlist_tab.draw(f, chunks_main[1])?,
-                _ => bail!("unknown tab"),
-            }
-        }
+        self.files_tab.draw(f, fsize);
+        // if !fullscreen_popup_open {
+        //     //TODO: macro because of generic draw call
+        //     match self.tab {
+        //         // 0 => self.status_tab.draw(f, chunks_main[1])?,
+        //         // 1 => self.revlog.draw(f, chunks_main[1])?,
+        //         0 => self.files_tab.draw(f, fsize)?,
+        //         // 3 => self.stashing_tab.draw(f, chunks_main[1])?,
+        //         // 4 => self.stashlist_tab.draw(f, chunks_main[1])?,
+        //         _ => bail!("unknown tab"),
+        //     }
+        // }
 
         // self.draw_popups(f)?;
 

@@ -391,24 +391,38 @@ impl RevisionFilesComponent {
 	// }
 }
 
+use ratatui::{
+    backend::CrosstermBackend,
+    widgets::{ Paragraph},
+    style::{Style, Color},
+    Terminal,
+};
 impl DrawableComponent for RevisionFilesComponent {
 	fn draw(&self, f: &mut Frame, area: Rect) -> Result<()> {
-		if self.is_visible() {
-			let chunks = Layout::default()
-				.direction(Direction::Horizontal)
-				.constraints(
-					[
-						Constraint::Percentage(40),
-						Constraint::Percentage(60),
-					]
-					.as_ref(),
-				)
-				.split(area);
+		// if self.is_visible() {
+		// 	let chunks = Layout::default()
+		// 		.direction(Direction::Horizontal)
+		// 		.constraints(
+		// 			[
+		// 				Constraint::Percentage(40),
+		// 				Constraint::Percentage(60),
+		// 			]
+		// 			.as_ref(),
+		// 		)
+		// 		.split(area);
 
-			self.draw_tree(f, chunks[0])?;
+		// 	self.draw_tree(f, chunks[0])?;
 
-			// self.current_file.draw(f, chunks[1])?;
-		}
+		// 	// self.current_file.draw(f, chunks[1])?;
+		// }
+        let block = Block::default()
+                .title("My App")
+                .borders(Borders::ALL);
+        let paragraph = Paragraph::new("Hello, world!")
+                .block(block)
+                .style(Style::default().fg(Color::Yellow));
+
+            f.render_widget(paragraph, area);
 		Ok(())
 	}
 }

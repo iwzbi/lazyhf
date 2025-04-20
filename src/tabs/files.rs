@@ -106,9 +106,9 @@ impl Component for FilesTab {
 		self.visible = false;
 	}
 
-	// fn show(&mut self) -> Result<()> {
-	// 	self.visible = true;
-	// 	self.update()?;
-	// 	Ok(())
-	// }
+	fn show(&mut self) -> Result<()> {
+		self.visible = true;
+		// self.update()?;
+		Ok(())
+	}
 }
