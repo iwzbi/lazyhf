@@ -423,20 +423,20 @@ pub fn loading_text(_key_config: &SharedKeyConfig) -> String {
 // 	format!("{POPUP_SUCCESS_COPY} \"{s}\"")
 // }
 
-// pub fn ellipsis_trim_start(s: &str, width: usize) -> Cow<str> {
-// 	if s.width() <= width {
-// 		Cow::Borrowed(s)
-// 	} else {
-// 		Cow::Owned(format!(
-// 			"[{}]{}",
-// 			symbol::ELLIPSIS,
-// 			s.unicode_truncate_start(
-// 				width.saturating_sub(3 /* front indicator */)
-// 			)
-// 			.0
-// 		))
-// 	}
-// }
+pub fn ellipsis_trim_start(s: &str, width: usize) -> Cow<str> {
+	if s.width() <= width {
+		Cow::Borrowed(s)
+	} else {
+		Cow::Owned(format!(
+			"[{}]{}",
+			symbol::ELLIPSIS,
+			s.unicode_truncate_start(
+				width.saturating_sub(3 /* front indicator */)
+			)
+			.0
+		))
+	}
+}
 
 // pub mod commit {
 // 	use crate::keys::SharedKeyConfig;

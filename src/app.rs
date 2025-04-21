@@ -20,7 +20,7 @@ use crate::{
     // },
     // queue::{Action, AppTabs, InternalEvent, NeedsUpdate, Queue, StackablePopupOpen},
     // setup_popups,
-    // strings::{self, ellipsis_trim_start, order},
+    strings::{self, ellipsis_trim_start, order},
     // tabs::{FilesTab, Revlog, StashList, Stashing, Status},
     tabs::{FilesTab},
     // try_or_popup,
@@ -223,9 +223,9 @@ impl App {
             )
             .split(fsize);
 
-        // self.cmdbar.borrow().draw(f, chunks_main[2]);
+        self.cmdbar.borrow().draw(f, chunks_main[2]);
 
-        // self.draw_top_bar(f, chunks_main[0]);
+        self.draw_top_bar(f, chunks_main[0]);
 
         //TODO: component property + a macro `fullscreen_popup_open!`
         // to make this scale better?
@@ -235,7 +235,7 @@ impl App {
         //     || self.blame_file_popup.is_visible()
         //     || self.file_revlog_popup.is_visible();
         let fullscreen_popup_open = false;
-        self.files_tab.draw(f, fsize);
+        self.files_tab.draw(f, chunks_main[1]);
         // if !fullscreen_popup_open {
         //     //TODO: macro because of generic draw call
         //     match self.tab {
@@ -989,66 +989,66 @@ impl App {
 //     }
 
 //     //TODO: make this dynamic
-//     fn draw_top_bar(&self, f: &mut Frame, r: Rect) {
-//         const DIVIDER_PAD_SPACES: usize = 2;
-//         const SIDE_PADS: usize = 2;
-//         const MARGIN_LEFT_AND_RIGHT: usize = 2;
+    fn draw_top_bar(&self, f: &mut Frame, r: Rect) {
+        const DIVIDER_PAD_SPACES: usize = 2;
+        const SIDE_PADS: usize = 2;
+        const MARGIN_LEFT_AND_RIGHT: usize = 2;
 
-//         let r = r.inner(Margin {
-//             vertical: 0,
-//             horizontal: 1,
-//         });
+        let r = r.inner(Margin {
+            vertical: 0,
+            horizontal: 1,
+        });
 
-//         let tab_labels = [
-//             Span::raw(strings::tab_status(&self.key_config)),
-//             Span::raw(strings::tab_log(&self.key_config)),
-//             Span::raw(strings::tab_files(&self.key_config)),
-//             Span::raw(strings::tab_stashing(&self.key_config)),
-//             Span::raw(strings::tab_stashes(&self.key_config)),
-//         ];
-//         let divider = strings::tab_divider(&self.key_config);
+        let tab_labels = [
+            Span::raw(strings::tab_status(&self.key_config)),
+            Span::raw(strings::tab_log(&self.key_config)),
+            Span::raw(strings::tab_files(&self.key_config)),
+            Span::raw(strings::tab_stashing(&self.key_config)),
+            Span::raw(strings::tab_stashes(&self.key_config)),
+        ];
+        let divider = strings::tab_divider(&self.key_config);
 
-//         // heuristic, since tui doesn't provide a way to know
-//         // how much space is needed to draw a `Tabs`
-//         let tabs_len: usize = tab_labels.iter().map(Span::width).sum::<usize>()
-//             + tab_labels.len().saturating_sub(1) * (divider.width() + DIVIDER_PAD_SPACES)
-//             + SIDE_PADS
-//             + MARGIN_LEFT_AND_RIGHT;
+        // heuristic, since tui doesn't provide a way to know
+        // how much space is needed to draw a `Tabs`
+        let tabs_len: usize = tab_labels.iter().map(Span::width).sum::<usize>()
+            + tab_labels.len().saturating_sub(1) * (divider.width() + DIVIDER_PAD_SPACES)
+            + SIDE_PADS
+            + MARGIN_LEFT_AND_RIGHT;
 
-//         let left_right = Layout::default()
-//             .direction(Direction::Horizontal)
-//             .constraints(vec![
-//                 Constraint::Length(u16::try_from(tabs_len).unwrap_or(r.width)),
-//                 Constraint::Min(0),
-//             ])
-//             .split(r);
+        let left_right = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Length(u16::try_from(tabs_len).unwrap_or(r.width)),
+                Constraint::Min(0),
+            ])
+            .split(r);
 
-//         let table_area = r; // use entire area to allow drawing the horizontal separator line
-//         let text_area = left_right[1];
+        let table_area = r; // use entire area to allow drawing the horizontal separator line
+        let text_area = left_right[1];
 
-//         let tabs: Vec<Line> = tab_labels.into_iter().map(Line::from).collect();
+        let tabs: Vec<Line> = tab_labels.into_iter().map(Line::from).collect();
 
-//         f.render_widget(
-//             Tabs::new(tabs)
-//                 .block(
-//                     Block::default()
-//                         .borders(Borders::BOTTOM)
-//                         .border_style(self.theme.block(false)),
-//                 )
-//                 .style(self.theme.tab(false))
-//                 .highlight_style(self.theme.tab(true))
-//                 .divider(divider)
-//                 .select(self.tab),
-//             table_area,
-//         );
+        f.render_widget(
+            Tabs::new(tabs)
+                .block(
+                    Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_style(self.theme.block(false)),
+                )
+                .style(self.theme.tab(false))
+                .highlight_style(self.theme.tab(true))
+                .divider(divider)
+                .select(self.tab),
+            table_area,
+        );
 
-//         f.render_widget(
-//             Paragraph::new(Line::from(vec![Span::styled(
-//                 ellipsis_trim_start(&self.repo_path_text, text_area.width as usize),
-//                 self.theme.title(false),
-//             )]))
-//             .alignment(Alignment::Right),
-//             text_area,
-//         );
-//     }
+        f.render_widget(
+            Paragraph::new(Line::from(vec![Span::styled(
+                ellipsis_trim_start(&self.repo_path_text, text_area.width as usize),
+                self.theme.title(false),
+            )]))
+            .alignment(Alignment::Right),
+            text_area,
+        );
+    }
 }
