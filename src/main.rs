@@ -1,12 +1,13 @@
 mod app;
 mod args;
-// mod input;
+mod input;
 mod components;
 mod keys;
 mod tabs;
 mod ui;
 mod string_utils;
 mod strings;
+mod notify_mutex;
 
 mod cmdbar;
 use crate::{app::App, args::process_cmdline};
@@ -24,14 +25,18 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     ExecutableCommand,
 };
-// use input::{Input, InputEvent, InputState};
+use input::{Input, InputEvent, InputState};
 use app::QuitState;
 use keys::KeyConfig;
 use ratatui::backend::CrosstermBackend;
 use scopeguard::defer;
 use ui::style::Theme;
+use crossbeam_channel::{never, tick, unbounded, Receiver, Select};
 
 type Terminal = ratatui::Terminal<CrosstermBackend<io::Stdout>>;
+
+static TICK_INTERVAL: Duration = Duration::from_secs(5);
+static SPINNER_INTERVAL: Duration = Duration::from_millis(80);
 
 #[derive(Clone)]
 pub enum QueueEvent {
@@ -39,7 +44,7 @@ pub enum QueueEvent {
     Notify,
     SpinnerUpdate,
     // AsyncEvent(AsyncNotification),
-    // InputEvent(InputEvent),
+    InputEvent(InputEvent),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,11 +67,11 @@ pub enum AsyncAppNotification {
 //     Git(AsyncGitNotification),
 // }
 
-// #[derive(Clone, Copy, PartialEq)]
-// enum Updater {
-//     Ticker,
-//     NotifyWatcher,
-// }
+#[derive(Clone, Copy, PartialEq)]
+enum Updater {
+    Ticker,
+    NotifyWatcher,
+}
 
 fn main() -> Result<()> {
     let app_start = Instant::now();
@@ -84,13 +89,14 @@ fn main() -> Result<()> {
     }
 
     let mut terminal = start_terminal(io::stdout())?;
-    // let input = Input::new();
+    let input = Input::new();
 
     // let updater = if cliargs.notify_watcher {
     //     Updater::NotifyWatcher
     // } else {
     //     Updater::Ticker
     // };
+    let updater = Updater::Ticker;
 
     loop {
         let quit_state = run_app(
@@ -98,8 +104,8 @@ fn main() -> Result<()> {
             // repo_path.clone(),
             theme.clone(),
             key_config.clone(),
-            // &input,
-            // updater,
+            &input,
+            updater,
             &mut terminal,
         )?;
 
@@ -139,23 +145,19 @@ fn start_terminal(buf: Stdout) -> Result<Terminal> {
     Ok(terminal)
 }
 
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-};
 
 fn run_app(
     app_start: Instant,
     theme: Theme,
     key_config: KeyConfig,
-    // input: &Input,
-    // updater: Updater,
+    input: &Input,
+    updater: Updater,
     terminal: &mut Terminal,
 ) -> Result<QuitState, anyhow::Error> {
     // let (tx_git, rx_git) = unbounded();
     // let (tx_app, rx_app) = unbounded();
 
-    // let rx_input = input.receiver();
+    let rx_input = input.receiver();
 
     // let (rx_ticker, rx_watcher) = match updater {
     //     Updater::NotifyWatcher => {
@@ -165,6 +167,7 @@ fn run_app(
     //     }
     //     Updater::Ticker => (tick(TICK_INTERVAL), never()),
     // };
+    let (rx_ticker, rx_watcher) = (tick(TICK_INTERVAL), never());
 
     // let spinner_ticker = tick(SPINNER_INTERVAL);
 
@@ -172,30 +175,30 @@ fn run_app(
         // RefCell::new(repo),
         // tx_git,
         // tx_app,
-        // input.clone(),
+        input.clone(),
         theme,
         key_config,
     )?;
 
     // let mut spinner = Spinner::default();
-    // let mut first_update = true;
+    let mut first_update = true;
 
-    // log::trace!("app start: {} ms", app_start.elapsed().as_millis());
+    log::trace!("app start: {} ms", app_start.elapsed().as_millis());
 
     loop {
-        // let event = if first_update {
-        //     first_update = false;
-        //     QueueEvent::Notify
-        // } else {
-        //     select_event(
-        //         &rx_input,
-        //         &rx_git,
-        //         &rx_app,
-        //         &rx_ticker,
-        //         &rx_watcher,
-        //         &spinner_ticker,
-        //     )?
-        // };
+        let event = if first_update {
+            first_update = false;
+            QueueEvent::Notify
+        } else {
+            select_event(
+                &rx_input,
+                // &rx_git,
+                // &rx_app,
+                &rx_ticker,
+                &rx_watcher,
+                // &spinner_ticker,
+            )?
+        };
 
         {
             // if matches!(event, QueueEvent::SpinnerUpdate) {
@@ -204,86 +207,84 @@ fn run_app(
             //     continue;
             // }
 
-            if event::poll(std::time::Duration::from_millis(100))? {
-                if let Event::Key(key) = event::read()? {
-                    if key.code == KeyCode::Char('q') {
-                        break Ok(QuitState::None);
-                    }
-                }
-            }
             // scope_time!("loop");
 
-            // match event {
-            //     QueueEvent::InputEvent(ev) => {
-            //         if matches!(ev, InputEvent::State(InputState::Polling)) {
-            //             //Note: external ed closed, we need to re-hide cursor
-            //             terminal.hide_cursor()?;
-            //         }
-            //         app.event(ev)?;
-            //     }
-            //     QueueEvent::Tick | QueueEvent::Notify => {
-            //         app.update()?;
-            //     }
-            //     QueueEvent::AsyncEvent(ev) => {
-            //         if !matches!(
-            //             ev,
-            //             AsyncNotification::Git(AsyncGitNotification::FinishUnchanged)
-            //         ) {
-            //             app.update_async(ev)?;
-            //         }
-            //     }
-            //     QueueEvent::SpinnerUpdate => unreachable!(),
-            // }
+            match event {
+                QueueEvent::InputEvent(ev) => {
+                    if matches!(ev, InputEvent::State(InputState::Polling)) {
+                        //Note: external ed closed, we need to re-hide cursor
+                        terminal.hide_cursor()?;
+                    }
+                    app.event(ev)?;
+                }
+                QueueEvent::Tick | QueueEvent::Notify => {
+                    // app.update()?;
+                }
+                // QueueEvent::AsyncEvent(ev) => {
+                //     if !matches!(
+                //         ev,
+                //         AsyncNotification::Git(AsyncGitNotification::FinishUnchanged)
+                //     ) {
+                //         app.update_async(ev)?;
+                //     }
+                // }
+                // QueueEvent::SpinnerUpdate => unreachable!(),
+                _ => bail!("dame!"),
+            }
 
             draw(terminal, &app)?;
 
             // spinner.set_state(app.any_work_pending());
             // spinner.draw(terminal)?;
 
-            // if app.is_quit() {
-            //     break;
-            // }
+            if app.is_quit() {
+                break;
+            }
         }
     }
 
-    // Ok(app.quit_state())
+    Ok(app.quit_state())
 }
-// fn select_event(
-//     rx_input: &Receiver<InputEvent>,
-//     rx_git: &Receiver<AsyncGitNotification>,
-//     rx_app: &Receiver<AsyncAppNotification>,
-//     rx_ticker: &Receiver<Instant>,
-//     rx_notify: &Receiver<()>,
-//     rx_spinner: &Receiver<Instant>,
-// ) -> Result<QueueEvent> {
-//     let mut sel = Select::new();
+fn select_event(
+    rx_input: &Receiver<InputEvent>,
+    // rx_git: &Receiver<AsyncGitNotification>,
+    // rx_app: &Receiver<AsyncAppNotification>,
+    rx_ticker: &Receiver<Instant>,
+    rx_notify: &Receiver<()>,
+    // rx_spinner: &Receiver<Instant>,
+) -> Result<QueueEvent> {
+    let mut sel = Select::new();
 
-//     sel.recv(rx_input);
-//     sel.recv(rx_git);
-//     sel.recv(rx_app);
-//     sel.recv(rx_ticker);
-//     sel.recv(rx_notify);
-//     sel.recv(rx_spinner);
+    sel.recv(rx_input);
+    // sel.recv(rx_git);
+    // sel.recv(rx_app);
+    sel.recv(rx_ticker);
+    sel.recv(rx_notify);
+    // sel.recv(rx_spinner);
 
-//     let oper = sel.select();
-//     let index = oper.index();
+    let oper = sel.select();
+    let index = oper.index();
 
-//     let ev = match index {
-//         0 => oper.recv(rx_input).map(QueueEvent::InputEvent),
-//         1 => oper
-//             .recv(rx_git)
-//             .map(|e| QueueEvent::AsyncEvent(AsyncNotification::Git(e))),
-//         2 => oper
-//             .recv(rx_app)
-//             .map(|e| QueueEvent::AsyncEvent(AsyncNotification::App(e))),
-//         3 => oper.recv(rx_ticker).map(|_| QueueEvent::Notify),
-//         4 => oper.recv(rx_notify).map(|()| QueueEvent::Notify),
-//         5 => oper.recv(rx_spinner).map(|_| QueueEvent::SpinnerUpdate),
-//         _ => bail!("unknown select source"),
-//     }?;
+    let ev = match index {
+        0 => oper.recv(rx_input).map(QueueEvent::InputEvent),
+        1 => oper.recv(rx_ticker).map(|_| QueueEvent::Notify),
+        2 => oper.recv(rx_notify).map(|()| QueueEvent::Notify),
+        _ => bail!("unknown select source"),
+        // 0 => oper.recv(rx_input).map(QueueEvent::InputEvent),
+        // 1 => oper
+        //     .recv(rx_git)
+        //     .map(|e| QueueEvent::AsyncEvent(AsyncNotification::Git(e))),
+        // 2 => oper
+        //     .recv(rx_app)
+        //     .map(|e| QueueEvent::AsyncEvent(AsyncNotification::App(e))),
+        // 3 => oper.recv(rx_ticker).map(|_| QueueEvent::Notify),
+        // 4 => oper.recv(rx_notify).map(|()| QueueEvent::Notify),
+        // 5 => oper.recv(rx_spinner).map(|_| QueueEvent::SpinnerUpdate),
+        // _ => bail!("unknown select source"),
+    }?;
 
-//     Ok(ev)
-// }
+    Ok(ev)
+}
 
 fn draw(terminal: &mut Terminal, app: &App) -> io::Result<()> {
     // if app.requires_redraw() {

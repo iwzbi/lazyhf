@@ -6,7 +6,7 @@ use crate::{
     components::{
         Component, DrawableComponent,
     },
-    // input::{Input, InputEvent, InputState},
+    input::{Input, InputEvent, InputState},
     keys::{key_match, KeyConfig, SharedKeyConfig},
     // options::{Options, SharedOptions},
     // popup_stack::PopupStack,
@@ -22,7 +22,7 @@ use crate::{
     // setup_popups,
     strings::{self, ellipsis_trim_start, order},
     // tabs::{FilesTab, Revlog, StashList, Stashing, Status},
-    tabs::{FilesTab},
+    tabs::{FilesTab, Status},
     // try_or_popup,
     ui::style::{SharedTheme, Theme},
     // AsyncAppNotification, AsyncNotification,
@@ -49,6 +49,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use unicode_width::UnicodeWidthStr;
 // use unicode_width::UnicodeWidthStr;
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ pub enum QuitState {
 /// the main app type
 pub struct App {
     // repo: RepoPathRef,
-    // do_quit: QuitState,
+    do_quit: QuitState,
     // help_popup: HelpPopup,
     // msg_popup: MsgPopup,
     // confirm_popup: ConfirmPopup,
@@ -94,14 +95,14 @@ pub struct App {
     cmdbar: RefCell<CommandBar>,
     tab: usize,
     // revlog: Revlog,
-    // status_tab: Status,
+    status_tab: Status,
     // stashing_tab: Stashing,
     // stashlist_tab: StashList,
     files_tab: FilesTab,
     // queue: Queue,
     theme: SharedTheme,
     key_config: SharedKeyConfig,
-    // input: Input,
+    input: Input,
     // popup_stack: PopupStack,
     // options: SharedOptions,
     // repo_path_text: String,
@@ -129,7 +130,7 @@ impl App {
         // repo: RepoPathRef,
         // sender_git: Sender<AsyncGitNotification>,
         // sender_app: Sender<AsyncAppNotification>,
-        // input: Input,
+        input: Input,
         theme: Theme,
         key_config: KeyConfig,
     ) -> Result<Self> {
@@ -151,7 +152,7 @@ impl App {
         let tab = 0;
 
         let mut app = Self {
-            // input,
+            input,
             // confirm_popup: ConfirmPopup::new(&env),
             // commit_popup: CommitPopup::new(&env),
             // blame_file_popup: BlameFilePopup::new(&env, &strings::blame_title(&env.key_config)),
@@ -179,12 +180,12 @@ impl App {
             // submodule_popup: SubmodulesListPopup::new(&env),
             // log_search_popup: LogSearchPopupPopup::new(&env),
             // fuzzy_find_popup: FuzzyFindPopup::new(&env),
-            // do_quit: QuitState::None,
+            do_quit: QuitState::None,
             cmdbar: RefCell::new(CommandBar::new(env.theme.clone(), env.key_config.clone())),
             // help_popup: HelpPopup::new(&env),
             // msg_popup: MsgPopup::new(&env),
             // revlog: Revlog::new(&env),
-            // status_tab: Status::new(&env),
+            status_tab: Status::new(&env),
             // stashing_tab: Stashing::new(&env),
             // stashlist_tab: StashList::new(&env),
             files_tab: FilesTab::new(&env),
@@ -235,88 +236,87 @@ impl App {
         //     || self.blame_file_popup.is_visible()
         //     || self.file_revlog_popup.is_visible();
         let fullscreen_popup_open = false;
-        self.files_tab.draw(f, chunks_main[1]);
-        // if !fullscreen_popup_open {
-        //     //TODO: macro because of generic draw call
-        //     match self.tab {
-        //         // 0 => self.status_tab.draw(f, chunks_main[1])?,
-        //         // 1 => self.revlog.draw(f, chunks_main[1])?,
-        //         0 => self.files_tab.draw(f, fsize)?,
-        //         // 3 => self.stashing_tab.draw(f, chunks_main[1])?,
-        //         // 4 => self.stashlist_tab.draw(f, chunks_main[1])?,
-        //         _ => bail!("unknown tab"),
-        //     }
-        // }
+        if !fullscreen_popup_open {
+            //TODO: macro because of generic draw call
+            match self.tab {
+                0 => self.status_tab.draw(f, chunks_main[1])?,
+                // 1 => self.revlog.draw(f, chunks_main[1])?,
+                1 => self.files_tab.draw(f, fsize)?,
+                // 3 => self.stashing_tab.draw(f, chunks_main[1])?,
+                // 4 => self.stashlist_tab.draw(f, chunks_main[1])?,
+                _ => bail!("unknown tab"),
+            }
+        }
 
         // self.draw_popups(f)?;
 
         Ok(())
     }
 
-//     pub fn event(&mut self, ev: InputEvent) -> Result<()> {
-//         log::trace!("event: {:?}", ev);
+    pub fn event(&mut self, ev: InputEvent) -> Result<()> {
+        log::trace!("event: {:?}", ev);
 
-//         if let InputEvent::Input(ev) = ev {
-//             if self.check_hard_exit(&ev) || self.check_quit(&ev) {
-//                 return Ok(());
-//             }
+        if let InputEvent::Input(ev) = ev {
+            if self.check_hard_exit(&ev) || self.check_quit(&ev) {
+                return Ok(());
+            }
 
-//             let mut flags = NeedsUpdate::empty();
+            let mut flags = NeedsUpdate::empty();
 
-//             if event_pump(&ev, self.components_mut().as_mut_slice())?.is_consumed() {
-//                 flags.insert(NeedsUpdate::COMMANDS);
-//             } else if let Event::Key(k) = &ev {
-//                 let new_flags = if key_match(k, self.key_config.keys.tab_toggle) {
-//                     self.toggle_tabs(false)?;
-//                     NeedsUpdate::COMMANDS
-//                 } else if key_match(k, self.key_config.keys.tab_toggle_reverse) {
-//                     self.toggle_tabs(true)?;
-//                     NeedsUpdate::COMMANDS
-//                 } else if key_match(k, self.key_config.keys.tab_status)
-//                     || key_match(k, self.key_config.keys.tab_log)
-//                     || key_match(k, self.key_config.keys.tab_files)
-//                     || key_match(k, self.key_config.keys.tab_stashing)
-//                     || key_match(k, self.key_config.keys.tab_stashes)
-//                 {
-//                     self.switch_tab(k)?;
-//                     NeedsUpdate::COMMANDS
-//                 } else if key_match(k, self.key_config.keys.cmd_bar_toggle) {
-//                     self.cmdbar.borrow_mut().toggle_more();
-//                     NeedsUpdate::empty()
-//                 } else if key_match(k, self.key_config.keys.open_options) {
-//                     self.options_popup.show()?;
-//                     NeedsUpdate::ALL
-//                 } else {
-//                     NeedsUpdate::empty()
-//                 };
+            if event_pump(&ev, self.components_mut().as_mut_slice())?.is_consumed() {
+                flags.insert(NeedsUpdate::COMMANDS);
+            } else if let Event::Key(k) = &ev {
+                let new_flags = if key_match(k, self.key_config.keys.tab_toggle) {
+                    self.toggle_tabs(false)?;
+                    NeedsUpdate::COMMANDS
+                } else if key_match(k, self.key_config.keys.tab_toggle_reverse) {
+                    self.toggle_tabs(true)?;
+                    NeedsUpdate::COMMANDS
+                } else if key_match(k, self.key_config.keys.tab_status)
+                    || key_match(k, self.key_config.keys.tab_log)
+                    || key_match(k, self.key_config.keys.tab_files)
+                    || key_match(k, self.key_config.keys.tab_stashing)
+                    || key_match(k, self.key_config.keys.tab_stashes)
+                {
+                    self.switch_tab(k)?;
+                    NeedsUpdate::COMMANDS
+                } else if key_match(k, self.key_config.keys.cmd_bar_toggle) {
+                    self.cmdbar.borrow_mut().toggle_more();
+                    NeedsUpdate::empty()
+                } else if key_match(k, self.key_config.keys.open_options) {
+                    self.options_popup.show()?;
+                    NeedsUpdate::ALL
+                } else {
+                    NeedsUpdate::empty()
+                };
 
-//                 flags.insert(new_flags);
-//             }
+                flags.insert(new_flags);
+            }
 
-//             self.process_queue(flags)?;
-//         } else if let InputEvent::State(polling_state) = ev {
-//             self.external_editor_popup.hide();
-//             if matches!(polling_state, InputState::Paused) {
-//                 let result = if let Some(path) = self.file_to_open.take() {
-//                     ExternalEditorPopup::open_file_in_editor(&self.repo.borrow(), Path::new(&path))
-//                 } else {
-//                     let changes = self.status_tab.get_files_changes()?;
-//                     self.commit_popup.show_editor(changes)
-//                 };
+            self.process_queue(flags)?;
+        } else if let InputEvent::State(polling_state) = ev {
+            self.external_editor_popup.hide();
+            if matches!(polling_state, InputState::Paused) {
+                let result = if let Some(path) = self.file_to_open.take() {
+                    ExternalEditorPopup::open_file_in_editor(&self.repo.borrow(), Path::new(&path))
+                } else {
+                    let changes = self.status_tab.get_files_changes()?;
+                    self.commit_popup.show_editor(changes)
+                };
 
-//                 if let Err(e) = result {
-//                     let msg = format!("failed to launch editor:\n{e}");
-//                     log::error!("{}", msg.as_str());
-//                     self.msg_popup.show_error(msg.as_str())?;
-//                 }
+                if let Err(e) = result {
+                    let msg = format!("failed to launch editor:\n{e}");
+                    log::error!("{}", msg.as_str());
+                    self.msg_popup.show_error(msg.as_str())?;
+                }
 
-//                 self.requires_redraw.set(true);
-//                 self.input.set_polling(true);
-//             }
-//         }
+                self.requires_redraw.set(true);
+                self.input.set_polling(true);
+            }
+        }
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
 //     //TODO: do we need this?
 //     /// forward ticking to components that require it
@@ -367,14 +367,14 @@ impl App {
 //     }
 
 //     ///
-//     pub fn is_quit(&self) -> bool {
-//         !matches!(self.do_quit, QuitState::None) || self.input.is_aborted()
-//     }
+    pub fn is_quit(&self) -> bool {
+        !matches!(self.do_quit, QuitState::None) || self.input.is_aborted()
+    }
 
-//     ///
-//     pub fn quit_state(&self) -> QuitState {
-//         self.do_quit.clone()
-//     }
+    ///
+    pub fn quit_state(&self) -> QuitState {
+        self.do_quit.clone()
+    }
 
 //     ///
 //     pub fn any_work_pending(&self) -> bool {
@@ -404,10 +404,10 @@ impl App {
 //             false
 //         }
 //     }
-// }
+}
 
 // private impls
-// impl App {
+impl App {
 //     accessors!(
 //         self,
 //         [
@@ -483,32 +483,32 @@ impl App {
 //         ]
 //     );
 
-//     fn check_quit(&mut self, ev: &Event) -> bool {
-//         if self.any_popup_visible() {
-//             return false;
-//         }
-//         if let Event::Key(e) = ev {
-//             if key_match(e, self.key_config.keys.quit) {
-//                 self.do_quit = QuitState::Close;
-//                 return true;
-//             }
-//         }
-//         false
-//     }
+    fn check_quit(&mut self, ev: &Event) -> bool {
+        // if self.any_popup_visible() {
+        //     return false;
+        // }
+        if let Event::Key(e) = ev {
+            if key_match(e, self.key_config.keys.quit) {
+                self.do_quit = QuitState::Close;
+                return true;
+            }
+        }
+        false
+    }
 
-//     fn check_hard_exit(&mut self, ev: &Event) -> bool {
-//         if let Event::Key(e) = ev {
-//             if key_match(e, self.key_config.keys.exit) {
-//                 self.do_quit = QuitState::Close;
-//                 return true;
-//             }
-//         }
-//         false
-//     }
+    fn check_hard_exit(&mut self, ev: &Event) -> bool {
+        if let Event::Key(e) = ev {
+            if key_match(e, self.key_config.keys.exit) {
+                self.do_quit = QuitState::Close;
+                return true;
+            }
+        }
+        false
+    }
 
     fn get_tabs(&mut self) -> Vec<&mut dyn Component> {
         vec![
-            // &mut self.status_tab,
+            &mut self.status_tab,
             // &mut self.revlog,
             &mut self.files_tab,
             // &mut self.stashing_tab,
@@ -527,21 +527,21 @@ impl App {
 //         self.set_tab(new_tab)
 //     }
 
-//     fn switch_tab(&mut self, k: &KeyEvent) -> Result<()> {
-//         if key_match(k, self.key_config.keys.tab_status) {
-//             self.switch_to_tab(&AppTabs::Status)?;
-//         } else if key_match(k, self.key_config.keys.tab_log) {
-//             self.switch_to_tab(&AppTabs::Log)?;
-//         } else if key_match(k, self.key_config.keys.tab_files) {
-//             self.switch_to_tab(&AppTabs::Files)?;
-//         } else if key_match(k, self.key_config.keys.tab_stashing) {
-//             self.switch_to_tab(&AppTabs::Stashing)?;
-//         } else if key_match(k, self.key_config.keys.tab_stashes) {
-//             self.switch_to_tab(&AppTabs::Stashlist)?;
-//         }
+    fn switch_tab(&mut self, k: &KeyEvent) -> Result<()> {
+        if key_match(k, self.key_config.keys.tab_status) {
+            self.switch_to_tab(&AppTabs::Status)?;
+        } else if key_match(k, self.key_config.keys.tab_log) {
+            self.switch_to_tab(&AppTabs::Log)?;
+        } else if key_match(k, self.key_config.keys.tab_files) {
+            self.switch_to_tab(&AppTabs::Files)?;
+        } else if key_match(k, self.key_config.keys.tab_stashing) {
+            self.switch_to_tab(&AppTabs::Stashing)?;
+        } else if key_match(k, self.key_config.keys.tab_stashes) {
+            self.switch_to_tab(&AppTabs::Stashlist)?;
+        }
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
     fn set_tab(&mut self, tab: usize) -> Result<()> {
         let tabs = self.get_tabs();
@@ -1042,13 +1042,13 @@ impl App {
             table_area,
         );
 
-        f.render_widget(
-            Paragraph::new(Line::from(vec![Span::styled(
-                ellipsis_trim_start(&self.repo_path_text, text_area.width as usize),
-                self.theme.title(false),
-            )]))
-            .alignment(Alignment::Right),
-            text_area,
-        );
+        // f.render_widget(
+        //     Paragraph::new(Line::from(vec![Span::styled(
+        //         ellipsis_trim_start(&self.repo_path_text, text_area.width as usize),
+        //         self.theme.title(false),
+        //     )]))
+        //     .alignment(Alignment::Right),
+        //     text_area,
+        // );
     }
 }
