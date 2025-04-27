@@ -5,6 +5,7 @@ mod components;
 mod keys;
 mod tabs;
 mod ui;
+mod queue;
 mod string_utils;
 mod strings;
 mod notify_mutex;

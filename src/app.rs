@@ -19,6 +19,7 @@ use crate::{
     //     TagListPopup, UpdateRemoteUrlPopup,
     // },
     // queue::{Action, AppTabs, InternalEvent, NeedsUpdate, Queue, StackablePopupOpen},
+    queue::AppTabs,
     // setup_popups,
     strings::{self, ellipsis_trim_start, order},
     // tabs::{FilesTab, Revlog, StashList, Stashing, Status},
@@ -530,14 +531,14 @@ impl App {
     fn switch_tab(&mut self, k: &KeyEvent) -> Result<()> {
         if key_match(k, self.key_config.keys.tab_status) {
             self.switch_to_tab(&AppTabs::Status)?;
-        } else if key_match(k, self.key_config.keys.tab_log) {
-            self.switch_to_tab(&AppTabs::Log)?;
+        // } else if key_match(k, self.key_config.keys.tab_log) {
+            // self.switch_to_tab(&AppTabs::Log)?;
         } else if key_match(k, self.key_config.keys.tab_files) {
             self.switch_to_tab(&AppTabs::Files)?;
-        } else if key_match(k, self.key_config.keys.tab_stashing) {
-            self.switch_to_tab(&AppTabs::Stashing)?;
-        } else if key_match(k, self.key_config.keys.tab_stashes) {
-            self.switch_to_tab(&AppTabs::Stashlist)?;
+        // } else if key_match(k, self.key_config.keys.tab_stashing) {
+        //     self.switch_to_tab(&AppTabs::Stashing)?;
+        // } else if key_match(k, self.key_config.keys.tab_stashes) {
+        //     self.switch_to_tab(&AppTabs::Stashlist)?;
         }
 
         Ok(())
@@ -559,16 +560,16 @@ impl App {
         Ok(())
     }
 
-//     fn switch_to_tab(&mut self, tab: &AppTabs) -> Result<()> {
-//         match tab {
-//             AppTabs::Status => self.set_tab(0)?,
-//             AppTabs::Log => self.set_tab(1)?,
-//             AppTabs::Files => self.set_tab(2)?,
-//             AppTabs::Stashing => self.set_tab(3)?,
-//             AppTabs::Stashlist => self.set_tab(4)?,
-//         }
-//         Ok(())
-//     }
+    fn switch_to_tab(&mut self, tab: &AppTabs) -> Result<()> {
+        match tab {
+            AppTabs::Status => self.set_tab(0)?,
+            // AppTabs::Log => self.set_tab(1)?,
+            AppTabs::Files => self.set_tab(1)?,
+            // AppTabs::Stashing => self.set_tab(3)?,
+            // AppTabs::Stashlist => self.set_tab(4)?,
+        }
+        Ok(())
+    }
 
 //     fn update_commands(&mut self) {
 //         if self.help_popup.is_visible() {

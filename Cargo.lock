@@ -469,6 +469,7 @@ name = "lazyllm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitflags",
  "chrono",
  "clap",
  "crossbeam-channel",
