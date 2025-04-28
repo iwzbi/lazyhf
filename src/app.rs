@@ -19,7 +19,7 @@ use crate::{
     //     TagListPopup, UpdateRemoteUrlPopup,
     // },
     // queue::{Action, AppTabs, InternalEvent, NeedsUpdate, Queue, StackablePopupOpen},
-    queue::AppTabs,
+    queue::{AppTabs, NeedsUpdate},
     // setup_popups,
     strings::{self, ellipsis_trim_start, order},
     // tabs::{FilesTab, Revlog, StashList, Stashing, Status},
@@ -264,29 +264,31 @@ impl App {
 
             let mut flags = NeedsUpdate::empty();
 
-            if event_pump(&ev, self.components_mut().as_mut_slice())?.is_consumed() {
-                flags.insert(NeedsUpdate::COMMANDS);
-            } else if let Event::Key(k) = &ev {
-                let new_flags = if key_match(k, self.key_config.keys.tab_toggle) {
-                    self.toggle_tabs(false)?;
-                    NeedsUpdate::COMMANDS
-                } else if key_match(k, self.key_config.keys.tab_toggle_reverse) {
-                    self.toggle_tabs(true)?;
-                    NeedsUpdate::COMMANDS
-                } else if key_match(k, self.key_config.keys.tab_status)
-                    || key_match(k, self.key_config.keys.tab_log)
+            // if event_pump(&ev, self.components_mut().as_mut_slice())?.is_consumed() {
+            //     flags.insert(NeedsUpdate::COMMANDS);
+            // } else if let Event::Key(k) = &ev {
+            if let Event::Key(k) = &ev {
+                // let new_flags = if key_match(k, self.key_config.keys.tab_toggle) {
+                //     self.toggle_tabs(false)?;
+                //     NeedsUpdate::COMMANDS
+                // } else if key_match(k, self.key_config.keys.tab_toggle_reverse) {
+                //     self.toggle_tabs(true)?;
+                //     NeedsUpdate::COMMANDS
+                // } else if key_match(k, self.key_config.keys.tab_status)
+                let new_flags = if key_match(k, self.key_config.keys.tab_status)
+                    // || key_match(k, self.key_config.keys.tab_log)
                     || key_match(k, self.key_config.keys.tab_files)
-                    || key_match(k, self.key_config.keys.tab_stashing)
-                    || key_match(k, self.key_config.keys.tab_stashes)
+                    // || key_match(k, self.key_config.keys.tab_stashing)
+                    // || key_match(k, self.key_config.keys.tab_stashes)
                 {
                     self.switch_tab(k)?;
                     NeedsUpdate::COMMANDS
-                } else if key_match(k, self.key_config.keys.cmd_bar_toggle) {
-                    self.cmdbar.borrow_mut().toggle_more();
-                    NeedsUpdate::empty()
-                } else if key_match(k, self.key_config.keys.open_options) {
-                    self.options_popup.show()?;
-                    NeedsUpdate::ALL
+                // } else if key_match(k, self.key_config.keys.cmd_bar_toggle) {
+                //     self.cmdbar.borrow_mut().toggle_more();
+                //     NeedsUpdate::empty()
+                // } else if key_match(k, self.key_config.keys.open_options) {
+                //     self.options_popup.show()?;
+                //     NeedsUpdate::ALL
                 } else {
                     NeedsUpdate::empty()
                 };
@@ -294,27 +296,28 @@ impl App {
                 flags.insert(new_flags);
             }
 
-            self.process_queue(flags)?;
-        } else if let InputEvent::State(polling_state) = ev {
-            self.external_editor_popup.hide();
-            if matches!(polling_state, InputState::Paused) {
-                let result = if let Some(path) = self.file_to_open.take() {
-                    ExternalEditorPopup::open_file_in_editor(&self.repo.borrow(), Path::new(&path))
-                } else {
-                    let changes = self.status_tab.get_files_changes()?;
-                    self.commit_popup.show_editor(changes)
-                };
-
-                if let Err(e) = result {
-                    let msg = format!("failed to launch editor:\n{e}");
-                    log::error!("{}", msg.as_str());
-                    self.msg_popup.show_error(msg.as_str())?;
-                }
-
-                self.requires_redraw.set(true);
-                self.input.set_polling(true);
-            }
+            // self.process_queue(flags)?;
         }
+        // } else if let InputEvent::State(polling_state) = ev {
+        //     self.external_editor_popup.hide();
+        //     if matches!(polling_state, InputState::Paused) {
+        //         let result = if let Some(path) = self.file_to_open.take() {
+        //             ExternalEditorPopup::open_file_in_editor(&self.repo.borrow(), Path::new(&path))
+        //         } else {
+        //             let changes = self.status_tab.get_files_changes()?;
+        //             self.commit_popup.show_editor(changes)
+        //         };
+
+        //         if let Err(e) = result {
+        //             let msg = format!("failed to launch editor:\n{e}");
+        //             log::error!("{}", msg.as_str());
+        //             self.msg_popup.show_error(msg.as_str())?;
+        //         }
+
+        //         self.requires_redraw.set(true);
+        //         self.input.set_polling(true);
+        //     }
+        // }
 
         Ok(())
     }
